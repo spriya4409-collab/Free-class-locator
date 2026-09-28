@@ -1,0 +1,6 @@
+{
+  "name": "SRM Free Classroom Tracker",
+  "description": "Instant free classroom and undisturbed study room tracker for SRM Institute of Science and Technology - Tiruchirappalli (FET).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

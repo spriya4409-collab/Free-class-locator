@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The 3D Map, Countdown, &amp; Squad Share | SRM FET Classroom Tracker</title>
+  <meta name="description" content="Interactive 3D isometric building floor map with live ticking countdown timers and instant Squad WhatsApp sharing for SRM IST Tiruchirappalli." />
+  <meta property="og:title" content="The 3D Map, Countdown, &amp; Squad Share" />
+  <meta property="og:description" content="Interactive 3D isometric building floor map with live ticking countdown timers and instant Squad WhatsApp sharing." />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              500: '#0284c7',
+              600: '#0369a1',
+              700: '#075985',
+              900: '#0c4a6e',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* Custom Isometric & Glassmorphism styles */
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .font-mono-numbers {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+    .glass-card {
+      background: rgba(15, 23, 42, 0.78);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glass-panel {
+      background: rgba(30, 41, 59, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    /* SVG isometric hover transitions */
+    .iso-room {
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: pointer;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+    .iso-room:hover {
+      filter: brightness(1.22) drop-shadow(0 12px 20px rgba(0,0,0,0.55));
+      transform: translateY(-8px);
+    }
+    .iso-room.selected {
+      filter: brightness(1.3) drop-shadow(0 0 18px rgba(56, 189, 248, 0.8));
+      transform: translateY(-10px);
+    }
+    /* Pulsing animations */
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.9; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.08); }
+    }
+    .pulse-indicator {
+      animation: pulse-glow 2s infinite ease-in-out;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white">
+
+  <!-- Top App Bar -->
+  <header class="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/25 font-black text-white text-base tracking-wider">
+          SRM
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-extrabold text-base sm:text-lg tracking-tight text-white flex items-center gap-2">
+              The 3D Map, Countdown, &amp; Squad Share
+            </h1>
+            <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/30">
+              FET Tiruchirappalli
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 flex items-center gap-1.5">
+            <i data-lucide="map-pin" class="w-3 h-3 text-sky-400"></i>
+            Campus Building • Real-time Interactive Floor Plan
+          </p>
+        </div>
+      </div>
+
+      <!-- Quick Header Stats & Time Simulation Controller -->
+      <div class="flex items-center gap-3">
+        <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs">
+          <span class="text-slate-400 flex items-center gap-1">
+            <i data-lucide="clock" class="w-3.5 h-3.5 text-sky-400"></i> Sim Clock:
+          </span>
+          <span id="simTimeDisplay" class="font-mono-numbers font-bold text-sky-300">01:30:00 PM</span>
+        </div>
+
+        <button id="btnResetClock" title="Reset to standard Free Slot (01:30 PM)" class="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1">
+          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Reset Sim</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- Top Dashboard Controls Bar -->
+    <div class="glass-card rounded-2xl p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-xl">
+      <!-- Floor Switcher & Filter -->
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex items-center gap-2 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
+          <span class="text-xs font-semibold text-slate-400 px-2 flex items-center gap-1">
+            <i data-lucide="layers" class="w-3.5 h-3.5 text-sky-400"></i> Floor:
+          </span>
+          <button id="floor5Btn" class="px-3 py-1 text-xs font-bold rounded-lg bg-sky-600 text-white shadow-sm transition">
+            5th Floor (ECE / DS)
+          </button>
+          <button id="floor2Btn" class="px-3 py-1 text-xs font-semibold rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition">
+            2nd Floor (Senior ECE)
+          </button>
+        </div>
+
+        <!-- Filter toggle -->
+        <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-xs">
+          <button id="filterAllBtn" class="px-3 py-1 font-semibold rounded-lg bg-slate-800 text-white shadow-xs transition">
+            Show All
+          </button>
+          <button id="filterFreeBtn" class="px-3 py-1 font-semibold rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-1">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            Free Only
+          </button>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="relative">
+          <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+          <input
+            id="searchInput"
+            type="text"
+            placeholder="Search room (e.g., 502, 510)..."
+            class="pl-8 pr-3 py-1.5 text-xs bg-slate-900/90 border border-slate-700/80 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 w-44 sm:w-56"
+          />
+        </div>
+      </div>
+
+      <!-- Time Simulator Speed / Fast-forward buttons -->
+      <div class="flex flex-wrap items-center gap-2 text-xs">
+        <span class="text-slate-400 font-medium flex items-center gap-1">
+          <i data-lucide="fast-forward" class="w-3.5 h-3.5 text-amber-400"></i> Time Travel:
+        </span>
+        <button id="btnTimeSub15" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 font-mono-numbers">
+          -15m
+        </button>
+        <button id="btnTimeAdd15" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 font-mono-numbers">
+          +15m
+        </button>
+        <button id="btnTimeAdd45" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 font-mono-numbers">
+          +45m
+        </button>
+        <button id="btnTogglePlay" class="px-3 py-1 rounded-lg bg-sky-600/30 text-sky-300 border border-sky-500/40 hover:bg-sky-600/50 font-semibold flex items-center gap-1">
+          <i data-lucide="play" class="w-3 h-3" id="playIcon"></i>
+          <span id="playLabel">Live Play</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Status Legend & Quick Info Strip -->
+    <div class="flex flex-wrap items-center justify-between gap-3 px-2 text-xs">
+      <div class="flex flex-wrap items-center gap-5">
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span>
+          <span class="text-slate-300 font-medium">Available / Free (> 15m)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-amber-500 shadow-sm shadow-amber-500/50 animate-pulse"></span>
+          <span class="text-slate-300 font-medium">Expiring Soon (&lt; 15m)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-rose-500 shadow-sm shadow-rose-500/50"></span>
+          <span class="text-slate-300 font-medium">Occupied / Class in Session</span>
+        </div>
+      </div>
+      <div class="text-slate-400 text-xs">
+        Click any 3D room block to inspect schedule, live countdown, &amp; share invite link.
+      </div>
+    </div>
+
+    <!-- Interactive Grid Layout: 3D Map + Live Details Panel -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+      <!-- LEFT: 3D Isometric Map Stage (8 cols) -->
+      <div class="lg:col-span-8 glass-card rounded-3xl p-4 sm:p-6 shadow-2xl relative overflow-hidden border border-slate-800">
+        <!-- Floor Title Overlay -->
+        <div class="flex items-center justify-between mb-2">
+          <div>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-sky-400 bg-sky-950/60 px-2.5 py-0.5 rounded-full border border-sky-800/50">
+              Interactive Isometric Canvas
+            </span>
+            <h2 id="activeFloorTitle" class="text-xl font-bold text-white mt-1">
+              5th Floor Multi-Room Plan (IST 501, 502, 509, 510, 518, 519, 520)
+            </h2>
+          </div>
+          <div class="text-right">
+            <span id="availableRoomsBadge" class="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/50 px-2.5 py-1 rounded-lg">
+              4 Rooms Available
+            </span>
+          </div>
+        </div>
+
+        <!-- 3D Isometric Map Viewport -->
+        <div class="relative w-full aspect-[16/10] sm:aspect-[16/9] bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 rounded-2xl border border-slate-800/80 shadow-inner flex items-center justify-center p-2 overflow-hidden">
+
+          <!-- Background Architectural Grid Lines -->
+          <div class="absolute inset-0 opacity-15 pointer-events-none" style="background-image: radial-gradient(#38bdf8 1px, transparent 1px); background-size: 24px 24px;"></div>
+
+          <!-- Compass / Perspective indicator -->
+          <div class="absolute top-4 left-4 z-10 bg-slate-900/80 border border-slate-800 px-2.5 py-1.5 rounded-xl text-[10px] text-slate-400 flex items-center gap-1.5 backdrop-blur-md">
+            <i data-lucide="compass" class="w-3.5 h-3.5 text-sky-400"></i>
+            <span>Isometric North (30° Angle)</span>
+          </div>
+
+          <!-- SVG Isometric Floor Plan -->
+          <svg id="isometricSvg" viewBox="0 0 960 620" class="w-full h-full select-none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <!-- Isometric Gradients for Free Rooms (Emerald) -->
+              <linearGradient id="gradFreeTop" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#10b981" />
+                <stop offset="100%" stop-color="#059669" />
+              </linearGradient>
+              <linearGradient id="gradFreeLeft" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#047857" />
+                <stop offset="100%" stop-color="#064e3b" />
+              </linearGradient>
+              <linearGradient id="gradFreeRight" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#059669" />
+                <stop offset="100%" stop-color="#047857" />
+              </linearGradient>
+
+              <!-- Isometric Gradients for Expiring Soon (<15m Amber) -->
+              <linearGradient id="gradWarnTop" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#f59e0b" />
+                <stop offset="100%" stop-color="#d97706" />
+              </linearGradient>
+              <linearGradient id="gradWarnLeft" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#b45309" />
+                <stop offset="100%" stop-color="#78350f" />
+              </linearGradient>
+              <linearGradient id="gradWarnRight" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#d97706" />
+                <stop offset="100%" stop-color="#b45309" />
+              </linearGradient>
+
+              <!-- Isometric Gradients for Occupied Rooms (Rose / Dimmed) -->
+              <linearGradient id="gradBusyTop" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#f43f5e" />
+                <stop offset="100%" stop-color="#e11d48" />
+              </linearGradient>
+              <linearGradient id="gradBusyLeft" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#be123c" />
+                <stop offset="100%" stop-color="#881337" />
+              </linearGradient>
+              <linearGradient id="gradBusyRight" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#e11d48" />
+                <stop offset="100%" stop-color="#9f1239" />
+              </linearGradient>
+
+              <!-- Shadow Filter -->
+              <filter id="floorShadow" x="-10%" y="-10%" width="120%" height="130%">
+                <feDropShadow dx="0" dy="16" stdDeviation="12" flood-color="#000" flood-opacity="0.6" />
+              </filter>
+            </defs>
+
+            <!-- Base Ground / Floor Slab -->
+            <g id="floorBase" filter="url(#floorShadow)">
+              <!-- Main Base Polygon (Isometric Slab) -->
+              <polygon points="480,80 870,290 480,510 90,290" fill="#1e293b" stroke="#334155" stroke-width="2" />
+              <!-- Slab Depth Left -->
+              <polygon points="90,290 480,510 480,535 90,315" fill="#0f172a" />
+              <!-- Slab Depth Right -->
+              <polygon points="480,510 870,290 870,315 480,535" fill="#1e293b" />
+              <!-- Hallway Corridor Markings -->
+              <polygon points="480,180 630,265 480,350 330,265" fill="#0f172a" stroke="#38bdf8" stroke-dasharray="6,4" stroke-width="1.5" opacity="0.6" />
+              <text x="480" y="270" text-anchor="middle" fill="#64748b" font-size="11" font-weight="700" letter-spacing="2">CENTRAL CORRIDOR / FET WING</text>
+            </g>
+
+            <!-- Dynamic Room Groups rendered here by JS -->
+            <g id="roomsContainer"></g>
+
+            <!-- Floating Tooltip on Hover in SVG -->
+            <g id="svgHoverTooltip" opacity="0" pointer-events="none" class="transition-opacity duration-200">
+              <rect x="0" y="0" width="150" height="52" rx="8" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5" />
+              <text id="tooltipTitle" x="12" y="20" fill="#fff" font-size="12" font-weight="bold">IST 502</text>
+              <text id="tooltipSub" x="12" y="38" fill="#10b981" font-size="11" font-weight="600">Free until 2:30 PM</text>
+            </g>
+          </svg>
+        </div>
+
+        <!-- Quick 3D Room Pills -->
+        <div class="mt-4 flex flex-wrap items-center gap-2">
+          <span class="text-xs text-slate-400 font-semibold mr-1">Select Room:</span>
+          <div id="roomPillsContainer" class="flex flex-wrap gap-2"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Interactive Live Countdown & Squad Share Card (4 cols) -->
+      <div class="lg:col-span-4 space-y-4">
+
+        <!-- Selected Room Detail Card -->
+        <div class="glass-card rounded-3xl p-5 sm:p-6 shadow-2xl border border-slate-800 relative">
+          <!-- Room Status Ribbon -->
+          <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+            <div>
+              <span id="detailFloorBadge" class="text-[11px] font-bold text-sky-400 uppercase tracking-wider">5TH FLOOR • ECE WING</span>
+              <h3 id="detailRoomName" class="text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                IST 502
+              </h3>
+            </div>
+            <div id="detailStatusBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-indicator"></span>
+              Available
+            </div>
+          </div>
+
+          <!-- Room Capacity & Features Meta -->
+          <div class="grid grid-cols-2 gap-3 my-4">
+            <div class="bg-slate-900/80 p-3 rounded-2xl border border-slate-800">
+              <span class="text-[11px] text-slate-400 block font-medium">Capacity</span>
+              <span id="detailCapacity" class="text-base font-bold text-slate-100 flex items-center gap-1.5 mt-0.5">
+                <i data-lucide="users" class="w-4 h-4 text-sky-400"></i> 65 Desks
+              </span>
+            </div>
+            <div class="bg-slate-900/80 p-3 rounded-2xl border border-slate-800">
+              <span class="text-[11px] text-slate-400 block font-medium">Environment</span>
+              <span id="detailFeatures" class="text-base font-bold text-slate-100 flex items-center gap-1.5 mt-0.5">
+                <i data-lucide="wifi" class="w-4 h-4 text-emerald-400"></i> AC • High Quiet
+              </span>
+            </div>
+          </div>
+
+          <!-- LIVE TICKING COUNTDOWN TIMER BLOCK -->
+          <div class="my-5 p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-950 border border-slate-700/80 shadow-inner relative overflow-hidden">
+            <div class="flex items-center justify-between text-xs font-semibold mb-2">
+              <span id="timerHeadline" class="text-slate-300 flex items-center gap-1.5">
+                <i data-lucide="timer" class="w-4 h-4 text-amber-400"></i>
+                TIME REMAINING UNDISTURBED
+              </span>
+              <span id="timerTargetTime" class="text-sky-300 font-bold">
+                until 02:30 PM
+              </span>
+            </div>
+
+            <!-- Giant Ticking Digits -->
+            <div class="flex items-center justify-center gap-2 py-2">
+              <!-- Hours -->
+              <div class="flex flex-col items-center">
+                <div id="countdownHours" class="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center font-mono-numbers text-2xl sm:text-3xl font-extrabold text-white shadow-md">
+                  01
+                </div>
+                <span class="text-[10px] text-slate-400 mt-1 uppercase font-semibold">Hours</span>
+              </div>
+
+              <span class="font-mono-numbers text-2xl text-slate-500 font-bold mb-4">:</span>
+
+              <!-- Minutes -->
+              <div class="flex flex-col items-center">
+                <div id="countdownMins" class="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center font-mono-numbers text-2xl sm:text-3xl font-extrabold text-white shadow-md">
+                  45
+                </div>
+                <span class="text-[10px] text-slate-400 mt-1 uppercase font-semibold">Mins</span>
+              </div>
+
+              <span class="font-mono-numbers text-2xl text-slate-500 font-bold mb-4">:</span>
+
+              <!-- Seconds -->
+              <div class="flex flex-col items-center">
+                <div id="countdownSecs" class="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center font-mono-numbers text-2xl sm:text-3xl font-extrabold text-amber-400 shadow-md">
+                  00
+                </div>
+                <span class="text-[10px] text-slate-400 mt-1 uppercase font-semibold">Secs</span>
+              </div>
+            </div>
+
+            <!-- Visual Progress Bar -->
+            <div class="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
+              <div id="countdownProgress" class="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-500 transition-all duration-300" style="width: 78%;"></div>
+            </div>
+          </div>
+
+          <!-- Schedule Context / Next Event -->
+          <div class="bg-slate-900/60 rounded-xl p-3 border border-slate-800 text-xs space-y-1 mb-5">
+            <div class="text-slate-400 flex items-center justify-between">
+              <span>Next Scheduled Event:</span>
+              <span id="detailNextClassTime" class="font-semibold text-slate-200">02:30 PM (Period 7)</span>
+            </div>
+            <div class="text-slate-200 font-semibold flex items-center gap-1.5" id="detailNextClassTitle">
+              <i data-lucide="book-open" class="w-3.5 h-3.5 text-sky-400"></i>
+              <span>CS101: Digital Signal Processing (Prof. Arunkumar)</span>
+            </div>
+          </div>
+
+          <!-- 3. "CALL THE SQUAD" SHARING FEATURE -->
+          <div class="space-y-2.5">
+            <!-- Primary WhatsApp Deep Link Claim Button -->
+            <button
+              id="btnClaimSquad"
+              class="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-500 text-white font-extrabold text-sm sm:text-base shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 transform active:scale-98"
+            >
+              <i data-lucide="message-circle" class="w-5 h-5"></i>
+              <span>Claim Room &amp; Invite Squad</span>
+            </button>
+
+            <!-- Secondary Fallback Copy Link / Message Button -->
+            <button
+              id="btnCopyInvite"
+              class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition-all flex items-center justify-center gap-2"
+            >
+              <i data-lucide="copy" class="w-3.5 h-3.5 text-sky-400"></i>
+              <span>Copy Invite Message &amp; Link</span>
+            </button>
+          </div>
+
+          <!-- Live Squad Activity Mock -->
+          <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
+            <span class="flex items-center gap-1">
+              <i data-lucide="sparkles" class="w-3 h-3 text-amber-400"></i>
+              Instant invite generates pre-filled WhatsApp deep link
+            </span>
+            <span class="text-emerald-400 font-mono-numbers font-medium">99.4% Verified</span>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Interactive Toast Notification -->
+  <div
+    id="toastNotification"
+    class="fixed bottom-6 right-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 pointer-events-none flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-900 border border-sky-500/50 shadow-2xl text-white text-xs sm:text-sm"
+  >
+    <div class="w-7 h-7 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+      <i data-lucide="check" class="w-4 h-4"></i>
+    </div>
+    <div>
+      <div id="toastTitle" class="font-bold text-slate-100">Squad Link Copied!</div>
+      <div id="toastMessage" class="text-xs text-slate-400">Ready to paste in WhatsApp, Discord, or Telegram.</div>
+    </div>
+  </div>
+
+  <!-- APPLICATION JAVASCRIPT: DATA & INTERACTIVE LOGIC -->
+  <script>
+    // 1. DATASET DEFINITION (Multi-room floor plans matching SRM FET Tiruchirappalli)
+    const FLOORS_DATA = {
+      floor5: {
+        id: 'floor5',
+        name: '5th Floor (ECE / DS Wing)',
+        subtitle: '5th Floor Multi-Room Plan (IST 501, 502, 509, 510, 518, 519, 520)',
+        rooms: [
+          {
+            id: 'IST 502',
+            name: 'IST 502',
+            floor: '5th Floor',
+            wing: 'East Wing',
+            capacity: '65 Desks',
+            features: 'Dual AC • 4K Projector • High Quiet',
+            type: 'Lecture Hall',
+            // Isometric coordinates
+            iso: {
+              top: '250,200 370,130 460,180 340,250',
+              left: '250,200 340,250 340,290 250,240',
+              right: '340,250 460,180 460,220 340,290',
+              labelX: 350,
+              labelY: 195
+            },
+            // Schedule periods (times relative to simulated clock)
+            slots: [
+              { start: '13:20', end: '15:10', state: 'free', nextClass: 'CS101: Digital Signal Processing', nextClassStart: '15:10' },
+              { start: '15:10', end: '16:50', state: 'occupied', nextClass: 'EC204: VLSI Design', nextClassStart: '16:50' }
+            ]
+          },
+          {
+            id: 'IST 510',
+            name: 'IST 510',
+            floor: '5th Floor',
+            wing: 'East Wing',
+            capacity: '60 Desks',
+            features: 'CDC Room • Smartboard • Quiet',
+            type: 'CDC / Seminar',
+            iso: {
+              top: '380,125 500,55 590,105 470,175',
+              left: '380,125 470,175 470,215 380,165',
+              right: '470,175 590,105 590,145 470,215',
+              labelX: 480,
+              labelY: 120
+            },
+            slots: [
+              { start: '13:20', end: '14:20', state: 'free', nextClass: 'CDC Aptitude & Verbal Skills', nextClassStart: '14:20' },
+              { start: '14:20', end: '16:00', state: 'occupied', nextClass: 'Free Period', nextClassStart: '16:00' }
+            ]
+          },
+          {
+            id: 'IST 501',
+            name: 'IST 501',
+            floor: '5th Floor',
+            wing: 'North Wing',
+            capacity: '70 Desks',
+            features: 'Corner Hall • Whiteboards • Good Light',
+            type: 'Lecture Hall',
+            iso: {
+              top: '510,50 630,-20 720,30 600,100',
+              left: '510,50 600,100 600,140 510,90',
+              right: '600,100 720,30 720,70 600,140',
+              labelX: 610,
+              labelY: 45
+            },
+            slots: [
+              { start: '12:30', end: '14:10', state: 'occupied', nextClass: 'Free Slot (Period 7)', nextClassStart: '14:10' },
+              { start: '14:10', end: '16:50', state: 'free', nextClass: 'No further class', nextClassStart: '16:50' }
+            ]
+          },
+          {
+            id: 'IST 509',
+            name: 'IST 509',
+            floor: '5th Floor',
+            wing: 'Central Hub',
+            capacity: '45 Desks',
+            features: 'Discussion Pods • Power Sockets',
+            type: 'Tutorial Room',
+            iso: {
+              top: '500,270 620,200 710,250 590,320',
+              left: '500,270 590,320 590,360 500,310',
+              right: '590,320 710,250 710,290 590,360',
+              labelX: 600,
+              labelY: 265
+            },
+            slots: [
+              { start: '13:20', end: '13:42', state: 'free', nextClass: 'EC302: Antenna Theory', nextClassStart: '13:42' }, // will trigger expiring soon
+              { start: '13:42', end: '15:10', state: 'occupied', nextClass: 'Free Period', nextClassStart: '15:10' }
+            ]
+          },
+          {
+            id: 'IST 518',
+            name: 'IST 518',
+            floor: '5th Floor',
+            wing: 'West Wing',
+            capacity: '80 Desks',
+            features: 'Home for III ECE-A/B • Large Screen',
+            type: 'Major Lecture Hall',
+            iso: {
+              top: '370,345 490,275 580,325 460,395',
+              left: '370,345 460,395 460,435 370,385',
+              right: '460,395 580,325 580,365 460,435',
+              labelX: 470,
+              labelY: 340
+            },
+            slots: [
+              { start: '13:20', end: '16:50', state: 'free', nextClass: 'No further classes today', nextClassStart: '16:50' }
+            ]
+          },
+          {
+            id: 'IST 519',
+            name: 'IST 519',
+            floor: '5th Floor',
+            wing: 'West Wing',
+            capacity: '75 Desks',
+            features: 'Home for III ECE-DS • High Speed WiFi',
+            type: 'Lecture Hall',
+            iso: {
+              top: '240,420 360,350 450,400 330,470',
+              left: '240,420 330,470 330,510 240,460',
+              right: '330,470 450,400 450,440 330,510',
+              labelX: 340,
+              labelY: 415
+            },
+            slots: [
+              { start: '13:20', end: '16:50', state: 'free', nextClass: 'No further classes today', nextClassStart: '16:50' }
+            ]
+          },
+          {
+            id: 'IST 520',
+            name: 'IST 520',
+            floor: '5th Floor',
+            wing: 'South Wing',
+            capacity: '50 Desks',
+            features: 'German / Language Lab • Audio Setup',
+            type: 'Specialized Classroom',
+            iso: {
+              top: '130,340 230,280 320,330 220,390',
+              left: '130,340 220,390 220,430 130,380',
+              right: '220,390 320,330 320,370 220,430',
+              labelX: 220,
+              labelY: 335
+            },
+            slots: [
+              { start: '12:30', end: '14:00', state: 'occupied', nextClass: 'Language Group B', nextClassStart: '14:00' },
+              { start: '14:00', end: '16:50', state: 'free', nextClass: 'No further class', nextClassStart: '16:50' }
+            ]
+          }
+        ]
+      },
+      floor2: {
+        id: 'floor2',
+        name: '2nd Floor (Senior ECE & BME)',
+        subtitle: '2nd Floor Multi-Room Plan (IST 211, 225, 227)',
+        rooms: [
+          {
+            id: 'IST 225',
+            name: 'IST 225',
+            floor: '2nd Floor',
+            wing: 'East Wing',
+            capacity: '75 Desks',
+            features: 'Home for IV ECE-A • Projector • AC',
+            type: 'Senior Classroom',
+            iso: {
+              top: '260,220 400,140 500,200 360,280',
+              left: '260,220 360,280 360,330 260,270',
+              right: '360,280 500,200 500,250 360,330',
+              labelX: 375,
+              labelY: 215
+            },
+            slots: [
+              { start: '13:20', end: '16:50', state: 'free', nextClass: 'No further classes today', nextClassStart: '16:50' }
+            ]
+          },
+          {
+            id: 'IST 227',
+            name: 'IST 227',
+            floor: '2nd Floor',
+            wing: 'Central Wing',
+            capacity: '75 Desks',
+            features: 'Home for IV ECE-B • Podium Mic',
+            type: 'Senior Classroom',
+            iso: {
+              top: '420,130 560,50 660,110 520,190',
+              left: '420,130 520,190 520,240 420,180',
+              right: '520,190 660,110 660,160 520,240',
+              labelX: 535,
+              labelY: 125
+            },
+            slots: [
+              { start: '13:20', end: '16:50', state: 'free', nextClass: 'No further classes today', nextClassStart: '16:50' }
+            ]
+          },
+          {
+            id: 'IST 211',
+            name: 'IST 211',
+            floor: '2nd Floor',
+            wing: 'West Wing',
+            capacity: '60 Desks',
+            features: 'Home for III BME • Medical Electronics Kit',
+            type: 'Department Room',
+            iso: {
+              top: '360,340 500,260 600,320 460,400',
+              left: '360,340 460,400 460,450 360,390',
+              right: '460,400 600,320 600,370 460,450',
+              labelX: 475,
+              labelY: 335
+            },
+            slots: [
+              { start: '13:20', end: '14:10', state: 'occupied', nextClass: 'Biomedical Signal Processing', nextClassStart: '14:10' },
+              { start: '14:10', end: '16:50', state: 'free', nextClass: 'No further classes', nextClassStart: '16:50' }
+            ]
+          }
+        ]
+      }
+    };
+
+    // 2. SIMULATION & STATE VARIABLES
+    // Simulated time: 01:30:00 PM (13:30:00) on Tuesday (matches user sample query)
+    let simHours = 13;
+    let simMinutes = 30;
+    let simSeconds = 0;
+    let isPlaying = true;
+    let currentFloorKey = 'floor5';
+    let filterMode = 'all'; // 'all' or 'freeOnly'
+    let searchQuery = '';
+    let selectedRoomId = 'IST 502';
+
+    // 3. UTILITY TIME FUNCTIONS
+    function getSimTimeSeconds() {
+      return simHours * 3600 + simMinutes * 60 + simSeconds;
+    }
+
+    function timeStringToSeconds(hhmm) {
+      const [h, m] = hhmm.split(':').map(Number);
+      return h * 3600 + m * 60;
+    }
+
+    function secondsTo12HourString(totalSecs) {
+      let h = Math.floor(totalSecs / 3600) % 24;
+      const m = Math.floor((totalSecs % 3600) / 60);
+      const s = totalSecs % 60;
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12;
+      if (h === 0) h = 12;
+      return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')} ${ampm}`;
+    }
+
+    function secondsToShort12Hour(totalSecs) {
+      let h = Math.floor(totalSecs / 3600) % 24;
+      const m = Math.floor((totalSecs % 3600) / 60);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12;
+      if (h === 0) h = 12;
+      return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')} ${ampm}`;
+    }
+
+    // Determine current status of a room based on simulated time
+    function computeRoomStatus(room) {
+      const currentSecs = getSimTimeSeconds();
+
+      // Find matching slot
+      let currentSlot = null;
+      for (const slot of room.slots) {
+        const slotStart = timeStringToSeconds(slot.start);
+        const slotEnd = timeStringToSeconds(slot.end);
+        if (currentSecs >= slotStart && currentSecs < slotEnd) {
+          currentSlot = slot;
+          break;
+        }
+      }
+
+      if (!currentSlot) {
+        // Fallback default
+        currentSlot = room.slots[0];
+      }
+
+      const slotEndSecs = timeStringToSeconds(currentSlot.end);
+      const remainingSecs = Math.max(0, slotEndSecs - currentSecs);
+
+      let status = 'free'; // 'free', 'warning', 'occupied'
+      if (currentSlot.state === 'occupied') {
+        status = 'occupied';
+      } else {
+        // If free, check if < 15 minutes (900 seconds) remaining
+        if (remainingSecs <= 900) {
+          status = 'warning';
+        } else {
+          status = 'free';
+        }
+      }
+
+      return {
+        room,
+        slot: currentSlot,
+        status,
+        remainingSecs,
+        endTimeFormatted: secondsToShort12Hour(slotEndSecs),
+        nextClass: currentSlot.nextClass,
+        nextClassTime: currentSlot.nextClassStart ? secondsToShort12Hour(timeStringToSeconds(currentSlot.nextClassStart)) : ''
+      };
+    }
+
+    // 4. RENDER ISOMETRIC 3D MAP
+    function renderMap() {
+      const floor = FLOORS_DATA[currentFloorKey];
+      const roomsContainer = document.getElementById('roomsContainer');
+      const pillsContainer = document.getElementById('roomPillsContainer');
+      roomsContainer.innerHTML = '';
+      pillsContainer.innerHTML = '';
+
+      let availableCount = 0;
+
+      floor.rooms.forEach((room) => {
+        const info = computeRoomStatus(room);
+        if (info.status === 'free' || info.status === 'warning') {
+          availableCount++;
+        }
+
+        // Apply filters
+        const matchesSearch = !searchQuery || room.name.toLowerCase().includes(searchQuery.toLowerCase()) || room.id.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesFilter = filterMode === 'all' || (filterMode === 'freeOnly' && info.status !== 'occupied');
+
+        if (!matchesSearch || !matchesFilter) return;
+
+        // Choose isometric gradient based on status
+        let topFill = 'url(#gradFreeTop)';
+        let leftFill = 'url(#gradFreeLeft)';
+        let rightFill = 'url(#gradFreeRight)';
+        let strokeColor = '#34d399';
+        let glowColor = 'rgba(16, 185, 129, 0.4)';
+
+        if (info.status === 'warning') {
+          topFill = 'url(#gradWarnTop)';
+          leftFill = 'url(#gradWarnLeft)';
+          rightFill = 'url(#gradWarnRight)';
+          strokeColor = '#fbbf24';
+          glowColor = 'rgba(245, 158, 11, 0.5)';
+        } else if (info.status === 'occupied') {
+          topFill = 'url(#gradBusyTop)';
+          leftFill = 'url(#gradBusyLeft)';
+          rightFill = 'url(#gradBusyRight)';
+          strokeColor = '#f43f5e';
+          glowColor = 'rgba(244, 63, 94, 0.4)';
+        }
+
+        const isSelected = room.id === selectedRoomId;
+
+        // Create SVG Group for Room
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('class', `iso-room ${isSelected ? 'selected' : ''}`);
+        g.setAttribute('id', `room-svg-${room.id}`);
+        g.style.cursor = 'pointer';
+
+        // 3D Poly Faces: Left Depth, Right Depth, Top Surface
+        const leftPoly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        leftPoly.setAttribute('points', room.iso.left);
+        leftPoly.setAttribute('fill', leftFill);
+        leftPoly.setAttribute('stroke', '#0f172a');
+        leftPoly.setAttribute('stroke-width', '1');
+
+        const rightPoly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        rightPoly.setAttribute('points', room.iso.right);
+        rightPoly.setAttribute('fill', rightFill);
+        rightPoly.setAttribute('stroke', '#0f172a');
+        rightPoly.setAttribute('stroke-width', '1');
+
+        const topPoly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        topPoly.setAttribute('points', room.iso.top);
+        topPoly.setAttribute('fill', topFill);
+        topPoly.setAttribute('stroke', isSelected ? '#38bdf8' : strokeColor);
+        topPoly.setAttribute('stroke-width', isSelected ? '3' : '1.5');
+
+        // Text label floating on top surface
+        const textLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        textLabel.setAttribute('x', room.iso.labelX);
+        textLabel.setAttribute('y', room.iso.labelY);
+        textLabel.setAttribute('text-anchor', 'middle');
+        textLabel.setAttribute('fill', '#ffffff');
+        textLabel.setAttribute('font-size', '13');
+        textLabel.setAttribute('font-weight', '800');
+        textLabel.setAttribute('letter-spacing', '0.5');
+        textLabel.style.textShadow = '0 2px 4px rgba(0,0,0,0.8)';
+        textLabel.textContent = room.name;
+
+        // Subtext status on floor
+        const subLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        subLabel.setAttribute('x', room.iso.labelX);
+        subLabel.setAttribute('y', room.iso.labelY + 16);
+        subLabel.setAttribute('text-anchor', 'middle');
+        subLabel.setAttribute('fill', '#ffffff');
+        subLabel.setAttribute('font-size', '9');
+        subLabel.setAttribute('font-weight', '600');
+        subLabel.setAttribute('opacity', '0.9');
+        subLabel.textContent = info.status === 'occupied' ? 'OCCUPIED' : `${info.endTimeFormatted}`;
+
+        // Assemble SVG Group
+        g.appendChild(leftPoly);
+        g.appendChild(rightPoly);
+        g.appendChild(topPoly);
+        g.appendChild(textLabel);
+        g.appendChild(subLabel);
+
+        // Hover & Click Handlers
+        g.addEventListener('click', () => {
+          selectRoom(room.id);
+        });
+
+        g.addEventListener('mouseenter', (e) => {
+          showTooltip(room, info);
+        });
+
+        g.addEventListener('mouseleave', () => {
+          hideTooltip();
+        });
+
+        roomsContainer.appendChild(g);
+
+        // Render Quick Room Pill
+        const pill = document.createElement('button');
+        const pillStatusBg = info.status === 'free' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : info.status === 'warning' ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-rose-500/20 text-rose-300 border-rose-500/40';
+        pill.className = `px-2.5 py-1 text-xs rounded-lg font-bold border transition ${isSelected ? 'ring-2 ring-sky-400 bg-sky-600 text-white' : pillStatusBg}`;
+        pill.innerHTML = `<span>${room.name}</span> <span class="text-[10px] opacity-75">(${info.status})</span>`;
+        pill.addEventListener('click', () => selectRoom(room.id));
+        pillsContainer.appendChild(pill);
+      });
+
+      // Update badge
+      document.getElementById('availableRoomsBadge').textContent = `${availableCount} Rooms Available`;
+    }
+
+    // 5. TOOLTIP INTERACTION
+    function showTooltip(room, info) {
+      const tooltip = document.getElementById('svgHoverTooltip');
+      const title = document.getElementById('tooltipTitle');
+      const sub = document.getElementById('tooltipSub');
+
+      title.textContent = `${room.name} • ${room.capacity}`;
+      if (info.status === 'occupied') {
+        sub.textContent = `Occupied: ${info.nextClass}`;
+        sub.setAttribute('fill', '#f43f5e');
+      } else if (info.status === 'warning') {
+        sub.textContent = `Expiring soon! Free until ${info.endTimeFormatted}`;
+        sub.setAttribute('fill', '#f59e0b');
+      } else {
+        sub.textContent = `Available until ${info.endTimeFormatted}`;
+        sub.setAttribute('fill', '#10b981');
+      }
+
+      tooltip.setAttribute('transform', `translate(${room.iso.labelX - 75}, ${room.iso.labelY - 65})`);
+      tooltip.setAttribute('opacity', '1');
+    }
+
+    function hideTooltip() {
+      const tooltip = document.getElementById('svgHoverTooltip');
+      tooltip.setAttribute('opacity', '0');
+    }
+
+    // 6. ROOM SELECTION & CARD DETAIL UPDATE
+    function selectRoom(roomId) {
+      selectedRoomId = roomId;
+      renderMap();
+      updateDetailPanel();
+    }
+
+    function getSelectedRoomObject() {
+      const floor = FLOORS_DATA[currentFloorKey];
+      let room = floor.rooms.find(r => r.id === selectedRoomId);
+      if (!room) {
+        // Fallback to first room of floor
+        room = floor.rooms[0];
+        selectedRoomId = room.id;
+      }
+      return room;
+    }
+
+    function updateDetailPanel() {
+      const room = getSelectedRoomObject();
+      const info = computeRoomStatus(room);
+
+      document.getElementById('detailFloorBadge').textContent = `${room.floor.toUpperCase()} • ${room.wing.toUpperCase()}`;
+      document.getElementById('detailRoomName').textContent = room.name;
+      document.getElementById('detailCapacity').innerHTML = `<i data-lucide="users" class="w-4 h-4 text-sky-400"></i> ${room.capacity}`;
+      document.getElementById('detailFeatures').innerHTML = `<i data-lucide="sparkles" class="w-4 h-4 text-emerald-400"></i> ${room.features}`;
+
+      // Status Badge
+      const statusBadge = document.getElementById('detailStatusBadge');
+      if (info.status === 'free') {
+        statusBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5';
+        statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 pulse-indicator"></span> Available`;
+      } else if (info.status === 'warning') {
+        statusBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5';
+        statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span> Expiring Soon (&lt;15m)`;
+      } else {
+        statusBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center gap-1.5';
+        statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400"></span> Class in Session`;
+      }
+
+      // Timer Headline
+      const timerHeadline = document.getElementById('timerHeadline');
+      const timerTargetTime = document.getElementById('timerTargetTime');
+
+      if (info.status === 'occupied') {
+        timerHeadline.innerHTML = `<i data-lucide="clock" class="w-4 h-4 text-rose-400"></i> CLASS IN SESSION UNTIL`;
+        timerTargetTime.textContent = info.endTimeFormatted;
+      } else {
+        timerHeadline.innerHTML = `<i data-lucide="timer" class="w-4 h-4 text-amber-400"></i> TIME REMAINING UNDISTURBED`;
+        timerTargetTime.textContent = `until ${info.endTimeFormatted}`;
+      }
+
+      // Next Class Details
+      document.getElementById('detailNextClassTime').textContent = info.nextClassTime || info.endTimeFormatted;
+      document.getElementById('detailNextClassTitle').innerHTML = `<i data-lucide="book-open" class="w-3.5 h-3.5 text-sky-400"></i> <span>${info.nextClass}</span>`;
+
+      // Update Ticking Digits
+      const hrs = Math.floor(info.remainingSecs / 3600);
+      const mins = Math.floor((info.remainingSecs % 3600) / 60);
+      const secs = info.remainingSecs % 60;
+
+      document.getElementById('countdownHours').textContent = hrs.toString().padStart(2, '0');
+      document.getElementById('countdownMins').textContent = mins.toString().padStart(2, '0');
+      document.getElementById('countdownSecs').textContent = secs.toString().padStart(2, '0');
+
+      // Progress bar (Assume standard period window is 1.5 - 2 hrs = 7200s max)
+      const maxWindow = 7200;
+      const progressPercent = Math.min(100, Math.max(5, (info.remainingSecs / maxWindow) * 100));
+      document.getElementById('countdownProgress').style.width = `${progressPercent}%`;
+
+      // Claim Button State & Text
+      const claimBtn = document.getElementById('btnClaimSquad');
+      if (info.status === 'occupied') {
+        claimBtn.innerHTML = `<i data-lucide="bell" class="w-5 h-5"></i> <span>Notify Me When Free</span>`;
+        claimBtn.className = 'w-full py-3.5 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-extrabold text-sm sm:text-base border border-slate-700 transition flex items-center justify-center gap-2';
+      } else {
+        claimBtn.innerHTML = `<i data-lucide="message-circle" class="w-5 h-5"></i> <span>Claim Room &amp; Invite Squad</span>`;
+        claimBtn.className = 'w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-500 text-white font-extrabold text-sm sm:text-base shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 transform active:scale-98';
+      }
+
+      // Re-initialize Lucide Icons in dynamically altered DOM
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+    }
+
+    // 7. "CALL THE SQUAD" SHARING MECHANISM
+    function setupSquadShare() {
+      const claimBtn = document.getElementById('btnClaimSquad');
+      const copyBtn = document.getElementById('btnCopyInvite');
+
+      function generateInviteMessage() {
+        const room = getSelectedRoomObject();
+        const info = computeRoomStatus(room);
+        const endTime = info.endTimeFormatted;
+
+        if (info.status === 'occupied') {
+          return `📍 Checking out [${room.name} (${room.floor})]. Class ends at ${endTime}. Gathering the squad right after!`;
+        }
+        return `📍 Heading to [${room.name} (${room.floor})]. It's free until ${endTime}. Come fast!`;
+      }
+
+      claimBtn.addEventListener('click', () => {
+        const message = generateInviteMessage();
+        const encoded = encodeURIComponent(message);
+        const whatsappUrl = `https://wa.me/?text=${encoded}`;
+        window.open(whatsappUrl, '_blank');
+        showToast('WhatsApp Opened!', 'Sharing room claim with squad invite link.');
+      });
+
+      copyBtn.addEventListener('click', () => {
+        const message = generateInviteMessage();
+        navigator.clipboard.writeText(message).then(() => {
+          showToast('Squad Invite Copied!', `"${message}"`);
+        }).catch(() => {
+          showToast('Copied to Clipboard!', message);
+        });
+      });
+    }
+
+    // Toast Notification System
+    function showToast(title, msg) {
+      const toast = document.getElementById('toastNotification');
+      document.getElementById('toastTitle').textContent = title;
+      document.getElementById('toastMessage').textContent = msg;
+
+      toast.classList.remove('translate-y-24', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-24', 'opacity-0');
+      }, 3500);
+    }
+
+    // 8. SIMULATION TIMER LOOP & CONTROLLERS
+    function startSimulationTimer() {
+      setInterval(() => {
+        if (isPlaying) {
+          simSeconds++;
+          if (simSeconds >= 60) {
+            simSeconds = 0;
+            simMinutes++;
+            if (simMinutes >= 60) {
+              simMinutes = 0;
+              simHours = (simHours + 1) % 24;
+            }
+          }
+        }
+        // Update display clock
+        const currentTotalSecs = getSimTimeSeconds();
+        document.getElementById('simTimeDisplay').textContent = secondsTo12HourString(currentTotalSecs);
+
+        // Update active room digits
+        updateDetailPanel();
+      }, 1000);
+    }
+
+    // 9. EVENT LISTENERS SETUP
+    function initListeners() {
+      // Floor switchers
+      const floor5Btn = document.getElementById('floor5Btn');
+      const floor2Btn = document.getElementById('floor2Btn');
+
+      floor5Btn.addEventListener('click', () => {
+        currentFloorKey = 'floor5';
+        floor5Btn.className = 'px-3 py-1 text-xs font-bold rounded-lg bg-sky-600 text-white shadow-sm transition';
+        floor2Btn.className = 'px-3 py-1 text-xs font-semibold rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition';
+        document.getElementById('activeFloorTitle').textContent = FLOORS_DATA.floor5.subtitle;
+        selectedRoomId = 'IST 502';
+        renderMap();
+        updateDetailPanel();
+      });
+
+      floor2Btn.addEventListener('click', () => {
+        currentFloorKey = 'floor2';
+        floor2Btn.className = 'px-3 py-1 text-xs font-bold rounded-lg bg-sky-600 text-white shadow-sm transition';
+        floor5Btn.className = 'px-3 py-1 text-xs font-semibold rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition';
+        document.getElementById('activeFloorTitle').textContent = FLOORS_DATA.floor2.subtitle;
+        selectedRoomId = 'IST 225';
+        renderMap();
+        updateDetailPanel();
+      });
+
+      // Filter toggles
+      const filterAllBtn = document.getElementById('filterAllBtn');
+      const filterFreeBtn = document.getElementById('filterFreeBtn');
+
+      filterAllBtn.addEventListener('click', () => {
+        filterMode = 'all';
+        filterAllBtn.className = 'px-3 py-1 font-semibold rounded-lg bg-slate-800 text-white shadow-xs transition';
+        filterFreeBtn.className = 'px-3 py-1 font-semibold rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-1';
+        renderMap();
+      });
+
+      filterFreeBtn.addEventListener('click', () => {
+        filterMode = 'freeOnly';
+        filterFreeBtn.className = 'px-3 py-1 font-semibold rounded-lg bg-emerald-600 text-white shadow-xs transition flex items-center gap-1';
+        filterAllBtn.className = 'px-3 py-1 font-semibold rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition';
+        renderMap();
+      });
+
+      // Search
+      document.getElementById('searchInput').addEventListener('input', (e) => {
+        searchQuery = e.target.value.trim();
+        renderMap();
+      });
+
+      // Time simulation adjustments
+      document.getElementById('btnResetClock').addEventListener('click', () => {
+        simHours = 13;
+        simMinutes = 30;
+        simSeconds = 0;
+        showToast('Sim Clock Reset', 'Simulated time set back to 01:30:00 PM.');
+        updateDetailPanel();
+        renderMap();
+      });
+
+      document.getElementById('btnTimeSub15').addEventListener('click', () => {
+        simMinutes -= 15;
+        if (simMinutes < 0) {
+          simMinutes += 60;
+          simHours = (simHours - 1 + 24) % 24;
+        }
+        updateDetailPanel();
+        renderMap();
+      });
+
+      document.getElementById('btnTimeAdd15').addEventListener('click', () => {
+        simMinutes += 15;
+        if (simMinutes >= 60) {
+          simMinutes -= 60;
+          simHours = (simHours + 1) % 24;
+        }
+        updateDetailPanel();
+        renderMap();
+      });
+
+      document.getElementById('btnTimeAdd45').addEventListener('click', () => {
+        simMinutes += 45;
+        if (simMinutes >= 60) {
+          simMinutes -= 60;
+          simHours = (simHours + 1) % 24;
+        }
+        updateDetailPanel();
+        renderMap();
+      });
+
+      document.getElementById('btnTogglePlay').addEventListener('click', () => {
+        isPlaying = !isPlaying;
+        const icon = document.getElementById('playIcon');
+        const label = document.getElementById('playLabel');
+        if (isPlaying) {
+          label.textContent = 'Live Play';
+          document.getElementById('btnTogglePlay').className = 'px-3 py-1 rounded-lg bg-sky-600/30 text-sky-300 border border-sky-500/40 hover:bg-sky-600/50 font-semibold flex items-center gap-1';
+        } else {
+          label.textContent = 'Paused';
+          document.getElementById('btnTogglePlay').className = 'px-3 py-1 rounded-lg bg-slate-800 text-slate-400 border border-slate-700 font-semibold flex items-center gap-1';
+        }
+        if (window.lucide) window.lucide.createIcons();
+      });
+    }
+
+    // 10. INITIALIZATION
+    window.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+      initListeners();
+      setupSquadShare();
+      renderMap();
+      updateDetailPanel();
+      startSimulationTimer();
+    });
+  </script>
+</body>
+</html>
